@@ -1,0 +1,193 @@
+"""PacBio Isoseq workflow.
+
+Runs the Isoseq3 workflow. Our data is from RS II and needs to be converted to be compatible with this workflow.
+
+"""
+import pandas as pd
+
+shell.prefix('set -eo pipefail;')
+workdir: '.'
+#configfile: ''
+
+
+""" Starting data
+ARL0001_1/m160606_202633_42231_c100988372550000001823222407191664_s1_p0.1.bax.h5
+ARL0001_1/m160606_202633_42231_c100988372550000001823222407191664_s1_p0.2.bax.h5
+ARL0001_1/m160606_202633_42231_c100988372550000001823222407191664_s1_p0.3.bax.h5
+"""
+
+sampletable = pd.read_csv('config/sampletable.tsv', sep='\t', index_col=0).head(3)
+samples = sampletable.index.tolist()
+processids = sampletable.processID.tolist()
+
+
+patterns = {
+    'bax2bam': '{sample_dir}/{sample}/{processid}.subreads.bam',
+    'ccs': '{sample_dir}/{sample}/{processid}.ccs.bam',
+    'lima': '',
+    'refine': '',
+    'merge': '',
+    'cluster': '',
+    'polish': ''
+}
+
+rule all:
+    input:
+        expand(patterns['bax2bam'], sample_dir='/scratch/dmel_pacbio', sample=samples, processid=processids),
+        expand(patterns['ccs'], sample_dir='/scratch/dmel_pacbio', sample=samples, processid=processids),
+
+
+def _bax2bam(wildcards):
+    _curr = sampletable[sampletable.processID == wildcards.processid].iloc[0, :]
+    return _curr[['movie1', 'movie2', 'movie3']].tolist()
+
+
+rule bax2bam:
+    input: movies = _bax2bam
+    output: patterns['bax2bam']
+    log: patterns['bax2bam'] + '.log'
+    conda: 'config/pacbio_tools.yaml'
+    shell: "bax2bam {input.movies} -o {wildcards.sample_dir}/{wildcards.sample}/{wildcards.processid} 2>&1 > {log}"
+
+
+rule ccs:
+    input: rules.bax2bam.output[0]
+    output: patterns['ccs']
+    log: patterns['ccs'] + '.log'
+    conda: 'config/pacbio_tools.yaml'
+    threads: 8
+    shell: """
+    ccs \
+        --maxLength 40000 \
+        --minPasses 1 \
+        --numThreads {threads} \
+        --logFile {log} \
+        {input[0]} \
+        {output[0]} \
+    """
+
+#TODO: double check these BCs
+"""BCs
+>primer_5p
+AAGCAGTGGTATCAACGCAGAGTACATGGG
+>primer_3p
+GTACTCTGCGTTGATACCACTGCTT
+"""
+
+rule lima:
+    input:
+        bam=rules.ccs.output[0],
+        bc='barcoded_primers.fasta'
+    output: patterns['lima']  # movieX.fl.bam
+    log: patterns['lima'] + '.log'
+    conda: 'config/pacbio_tools.yaml'
+    shell: """
+        lima {input.bam} {input.bc} {output[0]} --isoseq --no-pbi
+    """
+
+
+rule isoseq3_refine:
+    input: rules.lima.output[0]
+    output: patterns['refine']   # primers.fasta movieX.flnc.bam
+    log: patterns['refine'] + '.log'
+    conda: 'config/pacbio_tools.yaml'
+    shell: "isoseq3 refine {input[0]} {output[0]} --require-polya"
+
+
+def _isoseq3_merge(wildcards):
+    """I think here I would merge the different size fractions"""
+    return ''
+
+
+#TODO: figure out if we can generate the XML
+rule isoseq3_merge:
+    input: _isoseq3_merge
+    output: patterns['merge']
+    conda: 'config/pacbio_tools.yaml'
+    shell: """
+        dataset create --type TranscriptSet merged.flnc.xml movie1.flnc.bam movie2.flnc.bam movieN.flnc.bam
+    """
+
+
+rule isoseq3_cluster:
+    input: rules.isoseq3_merge.output[0]
+    output: patterns['cluster']
+    conda: 'config/pacbio_tools.yaml'
+    shell: """
+        isoseq3 cluster {input[0]} {output[0]} --verbose
+    """
+
+
+rule isoseq3_polish:
+    input: rules.isoseq3_cluster.output[0]
+    output: patterns['polish']
+    conda: 'config/pacbio_tools.yaml'
+    shell: """
+        isoseq3 cluster {input[0]} {output[0]} --verbose
+    """
+
+
+
+"""Real world example of these steps
+$ wget https://downloads.pacbcloud.com/public/dataset/RC0_1cell_2017/m54086_170204_081430.subreads.bam
+$ wget https://downloads.pacbcloud.com/public/dataset/RC0_1cell_2017/m54086_170204_081430.subreads.bam.pbi
+$ wget https://downloads.pacbcloud.com/public/dataset/RC0_1cell_2017/m54086_170204_081430.subreadset.xml
+
+$ ccs --version
+ccs 3.1.0 (commit v3.1.0)
+
+$ ccs m54086_170204_081430.subreads.bam m54086_170204_081430.ccs.bam \
+      --noPolish --minPasses 1 --maxPoaCoverage 10
+
+$ cat primers.fasta
+>primer_5p
+AAGCAGTGGTATCAACGCAGAGTACATGGGG
+>primer_3p
+AAGCAGTGGTATCAACGCAGAGTAC
+
+$ lima --version
+lima 1.8.0 (commit v1.8.0)
+
+$ lima m54086_170204_081430.ccs.bam primers.fasta m54086_170204_081430.fl.bam \
+       --isoseq --no-pbi
+
+$ ls m54086_170204_081430.fl*
+m54086_170204_081430.fl.json         m54086_170204_081430.fl.lima.summary
+m54086_170204_081430.fl.lima.clips   m54086_170204_081430.fl.primer_5p--primer_3p.bam
+m54086_170204_081430.fl.lima.counts  m54086_170204_081430.fl.primer_5p--primer_3p.subreadset.xml
+m54086_170204_081430.fl.lima.report
+
+$ isoseq3 refine m54086_170204_081430.fl.primer_5p--primer_3p.bam primers.fasta m54086_170204_081430.flnc.bam
+
+$ ls m54086_170204_081430.flnc.*
+m54086_170204_081430.flnc.bam                   m54086_170204_081430.flnc.filter_summary.json
+m54086_170204_081430.flnc.bam.pbi               m54086_170204_081430.flnc.report.csv
+m54086_170204_081430.flnc.consensusreadset.xml
+
+$ isoseq3 cluster m54086_170204_081430.flnc.bam unpolished.bam --verbose
+Read BAM                 : (197791) 4s 20ms
+Convert to reads         : 1s 431ms
+Sort Reads               : 56ms 947us
+Aligning Linear          : 2m 5s
+Read to clusters         : 9s 432ms
+Aligning Linear          : 54s 288ms
+Merge by mapping         : 36s 138ms
+Consensus                : 30s 126ms
+Merge by mapping         : 5s 418ms
+Consensus                : 3s 597ms
+Write output             : 1s 134ms
+Complete run time        : 4m 32s
+
+$ ls unpolished*
+unpolished.bam  unpolished.bam.pbi  unpolished.cluster  unpolished.fasta  unpolished.transcriptset.xml
+
+$ isoseq3 polish unpolished.bam m54086_170204_081430.subreadset.xml polished.bam --verbose
+14561
+
+$ ls polished*
+polished.bam                 polished.hq.fastq.gz
+polished.bam.pbi             polished.lq.fasta.gz
+polished.cluster_report.csv  polished.lq.fastq.gz
+polished.hq.fasta.gz         polished.transcriptset.xml
+
+"""
