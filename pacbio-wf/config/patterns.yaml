@@ -1,0 +1,18 @@
+bax2bam:
+  subreads:
+    bam: '{output_dir}/{run}/{sample}.subreads.bam'
+    pbi: '{output_dir}/{run}/{sample}.subreads.bam.pbi'
+  scraps:
+    bam: '{output_dir}/{run}/{sample}.scraps.bam'
+    pbi: '{output_dir}/{run}/{sample}.scraps.bam.pbi'
+
+ccs:
+  bam: '{output_dir}/{run}/{sample}.ccs.bam'
+  pbi: '{output_dir}/{run}/{sample}.ccs.bam.pbi'
+  report: '{output_dir}/{run}/{sample}.ccs_report.txt'
+
+#lima: ''
+#refine: ''
+#merge: ''
+#cluster: ''
+#polish: ''

@@ -1,0 +1,4 @@
+sampletable: 'config/sampletable.tsv'
+patterns: 'config/patterns.yaml'
+data_dir: '../data/Data_20160817'
+output_dir: '../output/pacbio-wf'

@@ -1,13 +1,13 @@
-	sex	tissue	processID	sizeBin	movie1	movie2	movie3
-w1118_wfem1	female	whole	ARL0001_1	1-2 kb	/scratch/Globus/PacBio/Data_20160817/ARL0001_1/m160606_202633_42231_c100988372550000001823222407191664_s1_p0.1.bax.h5	/scratch/Globus/PacBio/Data_20160817/ARL0001_1/m160606_202633_42231_c100988372550000001823222407191664_s1_p0.2.bax.h5	/scratch/Globus/PacBio/Data_20160817/ARL0001_1/m160606_202633_42231_c100988372550000001823222407191664_s1_p0.3.bax.h5
-w1118_wfem1	female	whole	ARL0001_2	2-3 kb	/scratch/Globus/PacBio/Data_20160817/ARL0001_2/m160608_202943_42231_c100988442550000001823222407191664_s1_p0.1.bax.h5	/scratch/Globus/PacBio/Data_20160817/ARL0001_2/m160608_202943_42231_c100988442550000001823222407191664_s1_p0.3.bax.h5	/scratch/Globus/PacBio/Data_20160817/ARL0001_2/m160608_202943_42231_c100988442550000001823222407191664_s1_p0.2.bax.h5
-w1118_wfem1	female	whole	ARL0001_3	3-6 kb	/scratch/Globus/PacBio/Data_20160817/ARL0001_3/m160607_004241_42231_c100988372550000001823222407191665_s1_p0.1.bax.h5	/scratch/Globus/PacBio/Data_20160817/ARL0001_3/m160607_004241_42231_c100988372550000001823222407191665_s1_p0.3.bax.h5	/scratch/Globus/PacBio/Data_20160817/ARL0001_3/m160607_004241_42231_c100988372550000001823222407191665_s1_p0.2.bax.h5
-w1118_wmal1	male	whole	ARL0002_1	1-2 kb			
-w1118_wmal1	male	whole	ARL0002_2	2-3 kb			
-w1118_wmal1	male	whole	ARL0002_3	3-6 kb			
-w1118_ovary1	female	ovary	ARL0003_1	1-2 kb			
-w1118_ovary1	female	ovary	ARL0003_2	2-3 kb			
-w1118_ovary1	female	ovary	ARL0003_3	3-6 kb			
-w1118_testi1	male	testis	ARL0004_1	1-2 kb			
-w1118_testi1	male	testis	ARL0004_2	2-3 kb			
-w1118_testi1	male	testis	ARL0004_3	3-6 kb			
+run	sample	sex	tissue	sizeBin
+ARL0001_1	w1118_wfem1	female	whole	1-2 kb
+ARL0001_2	w1118_wfem1	female	whole	2-3 kb
+ARL0001_3	w1118_wfem1	female	whole	3-6 kb
+ARL0002_1	w1118_wmal1	male	whole	1-2 kb
+ARL0002_2	w1118_wmal1	male	whole	2-3 kb
+ARL0002_3	w1118_wmal1	male	whole	3-6 kb
+ARL0003_1	w1118_ovary1	female	ovary	1-2 kb
+ARL0003_2	w1118_ovary1	female	ovary	2-3 kb
+ARL0003_3	w1118_ovary1	female	ovary	3-6 kb
+ARL0004_1	w1118_testi1	male	testis	1-2 kb
+ARL0004_2	w1118_testi1	male	testis	2-3 kb
+ARL0004_3	w1118_testi1	male	testis	3-6 kb
