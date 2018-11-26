@@ -1,0 +1,6 @@
+references_dir: '/data/LCDB/lcdb-references'
+
+# See the reference config files in the top level of the repo,
+# include/reference_configs, for inspiration for more species.
+include_references:
+  - 'config/Drosophila_melanogaster.yaml'
