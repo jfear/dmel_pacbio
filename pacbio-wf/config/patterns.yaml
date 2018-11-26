@@ -1,18 +1,74 @@
 bax2bam:
   subreads:
-    bam: '{output_dir}/{run}/{sample}.subreads.bam'
-    pbi: '{output_dir}/{run}/{sample}.subreads.bam.pbi'
+    bam: '{output_dir}/{sample}/{run}/{run}.subreads.bam'
+    pbi: '{output_dir}/{sample}/{run}/{run}.subreads.bam.pbi'
   scraps:
-    bam: '{output_dir}/{run}/{sample}.scraps.bam'
-    pbi: '{output_dir}/{run}/{sample}.scraps.bam.pbi'
+    bam: '{output_dir}/{sample}/{run}/{run}.scraps.bam'
+    pbi: '{output_dir}/{sample}/{run}/{run}.scraps.bam.pbi'
 
 ccs:
-  bam: '{output_dir}/{run}/{sample}.ccs.bam'
-  pbi: '{output_dir}/{run}/{sample}.ccs.bam.pbi'
-  report: '{output_dir}/{run}/{sample}.ccs_report.txt'
+  bam: '{output_dir}/{sample}/{run}/{run}.ccs.bam'
+  pbi: '{output_dir}/{sample}/{run}/{run}.ccs.bam.pbi'
+  report: '{output_dir}/{sample}/{run}/{run}.ccs_report.txt'
 
-#lima: ''
-#refine: ''
-#merge: ''
-#cluster: ''
-#polish: ''
+lima:
+  bam: '{output_dir}/{sample}/{run}/{run}.primer_5p--primer_3p.bam'
+  pbi: '{output_dir}/{sample}/{run}/{run}.primer_5p--primer_3p.bam.pbi'
+  xml: '{output_dir}/{sample}/{run}/{run}.primer_5p--primer_3p.subreadset.xml'
+  json: '{output_dir}/{sample}/{run}/{run}.json'
+  clips: '{output_dir}/{sample}/{run}/{run}.lima.clips'
+  report: '{output_dir}/{sample}/{run}/{run}.lima.report'
+  summary: '{output_dir}/{sample}/{run}/{run}.lima.summary'
+  counts: '{output_dir}/{sample}/{run}/{run}.lima.counts'
+
+merge:
+  xml: '{output_dir}/{sample}/{sample}.merged.flnc.xml'
+
+refine:
+  bam: '{output_dir}/{sample}/{sample}.refine.flnc.bam'
+  xml: '{output_dir}/{sample}/{sample}.refine.flnc.consensusreadset.xml'
+  summary: '{output_dir}/{sample}/{sample}.refine.flnc.filter_summary.json'
+  report: '{output_dir}/{sample}/{sample}.refine.flnc.report.csv'
+
+cluster:
+  bam: '{output_dir}/{sample}/{sample}.cluster.unpolished.bam'
+  pbi: '{output_dir}/{sample}/{sample}.cluster.unpolished.bam.pbi'
+  xml: '{output_dir}/{sample}/{sample}.cluster.unpolished.transcriptset.xml'
+  fasta: '{output_dir}/{sample}/{sample}.cluster.unpolished.fasta'
+  cluster: '{output_dir}/{sample}/{sample}.cluster.unpolished.cluster'
+
+merge_subreads:
+  xml: '{output_dir}/{sample}/{sample}.merged.subreads.xml'
+
+polish:
+  bam: '{output_dir}/{sample}/{sample}.polished.bam'
+  pbi: '{output_dir}/{sample}/{sample}.polished.bam.pbi'
+  report: '{output_dir}/{sample}/{sample}.polished.cluster_report.csv'
+  hq_fasta: '{output_dir}/{sample}/{sample}.polished.hq.fasta.gz'
+  hq_fastq: '{output_dir}/{sample}/{sample}.polished.hq.fastq.gz'
+  lq_fasta: '{output_dir}/{sample}/{sample}.polished.lq.fasta.gz'
+  lq_fastq: '{output_dir}/{sample}/{sample}.polished.lq.fastq.gz'
+  xml: '{output_dir}/{sample}/{sample}.polished.transcriptset.xml'
+
+merge_lima:
+  clips: '{output_dir}/{sample}/{sample}.merged.lima.clips'
+
+reports:
+  classify: '{output_dir}/{sample}/classify_report.csv'
+  cluster: '{output_dir}/{sample}/cluster_report.csv'
+
+gunzip:
+  hq_fasta: '{output_dir}/{sample}/{sample}.polished.hq.fasta'
+  hq_fastq: '{output_dir}/{sample}/{sample}.polished.hq.fastq'
+
+gmap_ref: '{output_dir}/references/dm6/dm6.chromosome'
+
+gmap_align:
+  sam: '{output_dir}/{sample}/{sample}.hq_fasta.gmap.sam'
+  bam: '{output_dir}/{sample}/{sample}.hq_fasta.gmap.bam'
+
+collapse_isoforms:
+  gff: '{output_dir}/{sample}/{sample}.collapsed.gff'
+  fq: '{output_dir}/{sample}/{sample}.collapsed.rep.fq'
+  txt: '{output_dir}/{sample}/{sample}.collapsed.group.txt'
+  ignored: '{output_dir}/{sample}/{sample}.ignored_ids.txt'

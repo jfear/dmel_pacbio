@@ -14,17 +14,27 @@ shell.prefix('set -eo pipefail;')
 configfile: 'config/config.yaml'
 workdir: '.'
 
-sampletable = pd.read_csv(config['sampletable'], sep='\t').head(3)
+sampletable = pd.read_csv(config['sampletable'], sep='\t')
 sampletable['data_dir'] = config['data_dir']
 sampletable['output_dir'] = config['output_dir']
 patterns = yaml.load(open(config['patterns']))
 targets = fill_patterns(patterns, sampletable, zip)
 
+localrules: all, cluster_report, classify_report
 
 rule all:
     input:
         flatten(targets['bax2bam']),
-        flatten(targets['ccs'])
+        flatten(targets['ccs']),
+        flatten(targets['lima']),
+        flatten(targets['merge']),
+        flatten(targets['refine']),
+        flatten(targets['cluster']),
+        flatten(targets['merge_subreads']),
+        flatten(targets['polish']),
+        flatten(targets['gmap_align']),
+        flatten(targets['reports']),
+        flatten(targets['collapse_isoforms']),
 
 
 def _bax2bam(wildcards):
@@ -33,94 +43,321 @@ def _bax2bam(wildcards):
 
 
 rule bax2bam:
-    input: movies = _bax2bam
-    output: flatten(patterns['bax2bam'])
-    params: prefix = '{output_dir}/{run}/{sample}'
-    log: patterns['bax2bam']['subreads']['bam'] + '.log'
-    conda: 'config/pacbio_tools.yaml'
-    shell: "bax2bam {input.movies} -o {params.prefix} 2>&1 > {log}"
+    input:
+        movies = _bax2bam
+    output:
+        flatten(patterns['bax2bam'])
+    params:
+        prefix = '{output_dir}/{sample}/{run}/{run}'
+    log:
+        patterns['bax2bam']['subreads']['bam'] + '.log'
+    conda:
+        'config/pacbio_tools.yaml'
+    resources:
+        mem_gb = 4,
+        time = 4,
+    shell:
+        "bax2bam {input.movies} -o {params.prefix} 2>&1 > {log}"
 
 
 rule ccs:
-    input: patterns['bax2bam']['subreads']['bam']
-    output: flatten(patterns['ccs'])
+    input:
+        patterns['bax2bam']['subreads']['bam']
+    output:
+        flatten(patterns['ccs'])
     params:
         bam = patterns['ccs']['bam'],
         report = patterns['ccs']['report']
-    log: patterns['ccs']['bam'] + '.log'
-    conda: 'config/pacbio_tools.yaml'
+    log:
+        patterns['ccs']['bam'] + '.log'
+    conda:
+        'config/pacbio_tools.yaml'
     threads: 28
-    shell: """
+    resources:
+        mem_gb = 12,
+        time = 4,
+    shell:
+        """
         ccs \
             --maxLength 40000 \
             --minPasses 1 \
             --numThreads {threads} \
             --logFile {log} \
             --reportFile {params.report} \
+            --noPolish \
             {input[0]} \
             {params.bam}
+        """
+
+
+rule lima:
+    input:
+        bam=patterns['ccs']['bam'],
+        bc='../data/pacbio_primers.fa'
+    output:
+        flatten(patterns['lima'])
+    params:
+        prefix = '{output_dir}/{sample}/{run}/{run}.bam'
+    conda:
+        'config/pacbio_tools.yaml'
+    resources:
+        mem_gb = 2,
+        time = 4,
+    shell:
+        "lima {input.bam} {input.bc} {params.prefix} --isoseq"
+
+
+def _isoseq3_merge(wildcards):
+    """Merge the different size fractions"""
+    sample = wildcards.sample
+    curr = sampletable[sampletable['sample'] == sample].copy()
+    curr_targets = fill_patterns(patterns['lima'], curr)
+    return curr_targets['bam']
+
+
+rule isoseq3_merge:
+    input:
+        _isoseq3_merge
+    output:
+        patterns['merge']['xml']
+    conda:
+        'config/pacbio_tools.yaml'
+    resources:
+        mem_gb = 2,
+        time = 4,
+    shell:
+        "dataset create --type TranscriptSet {output[0]} {input}"
+
+
+rule isoseq3_refine:
+    input:
+        xml = patterns['merge']['xml'],
+        bc = '../data/pacbio_primers.fa'
+    output:
+        flatten(patterns['refine'])
+    params:
+        bam=patterns['refine']['bam']
+    conda:
+        'config/pacbio_tools.yaml'
+    resources:
+        mem_gb = 2,
+        time = 4,
+    shell:
+        "isoseq3 refine {input.xml} {input.bc} {params.bam} --require-polya"
+
+
+rule isoseq3_cluster:
+    input:
+        patterns['refine']['bam']
+    output:
+        flatten(patterns['cluster'])
+    params:
+        bam = patterns['cluster']['bam']
+    conda:
+        'config/pacbio_tools.yaml'
+    threads: 32
+    resources:
+        mem_gb = 24,
+        time = 4,
+    shell:
+        "isoseq3 cluster {input[0]} {params.bam} -j {threads}"
+
+
+def _merge_subreads(wildcards):
+    """Merge subreads from different size fractions for polishing"""
+    sample = wildcards.sample
+    curr = sampletable[sampletable['sample'] == sample].copy()
+    curr_targets = fill_patterns(patterns['bax2bam'], curr)
+    return curr_targets['subreads']['bam']
+
+
+rule merge_subreads:
+    input:
+        _merge_subreads
+    output:
+        patterns['merge_subreads']['xml']
+    conda:
+        'config/pacbio_tools.yaml'
+    resources:
+        mem_gb = 2,
+        time = 4,
+    shell:
+        "dataset create --type SubreadSet {output[0]} {input}"
+
+
+rule isoseq3_polish:
+    input:
+        unpolished = patterns['cluster']['bam'],
+        subreads = patterns['merge_subreads']['xml']
+    output:
+        flatten(patterns['polish'])
+    params:
+        bam = patterns['polish']['bam']
+    conda:
+        'config/pacbio_tools.yaml'
+    threads: 32
+    resources:
+        mem_gb = 12,
+        time = 4,
+    shell:
+        "isoseq3 polish {input.unpolished} {input.subreads} {params.bam} -j {threads}"
+
+
+rule gmap_build:
+    input:
+        config['fasta']
+    output:
+        patterns['gmap_ref']
+    params:
+        '{output_dir}/references/dm6'
+    conda:
+        'config/pacbio_tools.yaml'
+    resources:
+        mem_gb = 8,
+        time = 4,
+    shell:
+        "gmap_build -D {wildcards.output_dir}/references -d dm6 {input[0]}"
+
+
+rule gunzip_fasta:
+    input:
+        patterns['polish']['hq_fasta']
+    output:
+        temp(patterns['gunzip']['hq_fasta'])
+    group:
+        'align'
+    shell:
+        "gunzip -c {input[0]} > {output[0]}"
+
+
+rule gmap_align:
+    """
+    Settings based on PacBio suggestions here:
+    https://github.com/Magdoll/cDNA_Cupcake/wiki/Best-practice-for-aligning-Iso-Seq-to-reference-genome:-minimap2,-GMAP,-STAR,-BLAT
+    """
+    input:
+        fasta = patterns['gunzip']['hq_fasta'],
+        ref = rules.gmap_build.output[0]
+    output:
+        sam = temp(patterns['gmap_align']['sam']),
+        bam = patterns['gmap_align']['bam']
+    log:
+        patterns['gmap_align']['sam'] + '.log'
+    conda:
+        'config/pacbio_tools.yaml'
+    threads: 32
+    group:
+        'align'
+    resources:
+        mem_gb = 12,
+        time = 4,
+    shell: """
+        gmap \
+            -D {wildcards.output_dir}/references \
+            -d dm6 \
+            -f samse \
+            -n 0 \
+            -t {threads} \
+            --cross-species \
+            --max-intronlength-ends 200000 \
+            -z sense_force \
+            {input.fasta} \
+            > {output.sam} \
+            2> {log} && \
+        samtools view -bS {output.sam} | samtools sort - > {output.bam} && \
+        samtools index {output.bam}
     """
 
-#TODO: double check these BCs
-"""BCs
->primer_5p
-AAGCAGTGGTATCAACGCAGAGTACATGGG
->primer_3p
-GTACTCTGCGTTGATACCACTGCTT
-"""
 
-# rule lima:
-#     input:
-#         bam=rules.ccs.output[0],
-#         bc='barcoded_primers.fasta'
-#     output: patterns['lima']  # movieX.fl.bam
-#     log: patterns['lima'] + '.log'
-#     conda: 'config/pacbio_tools.yaml'
-#     shell: """
-#         lima {input.bam} {input.bc} {output[0]} --isoseq --no-pbi
-#     """
-#
-#
-# rule isoseq3_refine:
-#     input: rules.lima.output[0]
-#     output: patterns['refine']   # primers.fasta movieX.flnc.bam
-#     log: patterns['refine'] + '.log'
-#     conda: 'config/pacbio_tools.yaml'
-#     shell: "isoseq3 refine {input[0]} {output[0]} --require-polya"
-#
-#
-# def _isoseq3_merge(wildcards):
-#     """I think here I would merge the different size fractions"""
-#     return ''
-#
-#
-# #TODO: figure out if we can generate the XML
-# rule isoseq3_merge:
-#     input: _isoseq3_merge
-#     output: patterns['merge']
-#     conda: 'config/pacbio_tools.yaml'
-#     shell: """
-#         dataset create --type TranscriptSet merged.flnc.xml movie1.flnc.bam movie2.flnc.bam movieN.flnc.bam
-#     """
-#
-#
-# rule isoseq3_cluster:
-#     input: rules.isoseq3_merge.output[0]
-#     output: patterns['cluster']
-#     conda: 'config/pacbio_tools.yaml'
-#     shell: """
-#         isoseq3 cluster {input[0]} {output[0]} --verbose
-#     """
-#
-#
-# rule isoseq3_polish:
-#     input: rules.isoseq3_cluster.output[0]
-#     output: patterns['polish']
-#     conda: 'config/pacbio_tools.yaml'
-#     shell: """
-#         isoseq3 cluster {input[0]} {output[0]} --verbose
-#     """
+def _merge_lima(wildcards):
+    """Merge lima clips from different size fractions"""
+    sample = wildcards.sample
+    curr = sampletable[sampletable['sample'] == sample].copy()
+    curr_targets = fill_patterns(patterns['lima'], curr)
+    return curr_targets['clips']
 
+
+rule merge_lima:
+    input:
+        _merge_lima
+    output:
+        patterns['merge_lima']['clips']
+    resources:
+        mem_gb = 1,
+        time = 1,
+    shell:
+        "cat {input} > {output[0]}"
+
+
+rule classify_report:
+    input:
+        clips = patterns['merge_lima']['clips'],
+        bc = '../data/pacbio_primers.fa',
+        flnc = patterns['cluster']['bam']
+    output:
+        patterns['reports']['classify']
+    conda:
+        'config/pacbio_tools.yaml'
+    resources:
+        mem_gb = 1,
+        time = 1,
+    shell: """
+        python $CONDA_PREFIX/bin/isoseq3_make_classify_report.py {input.clips} {input.bc} --flnc_bam {input.flnc} && \
+        mv classify_report.csv {output[0]}
+    """
+
+
+rule cluster_report:
+    input:
+        polished = patterns['polish']['bam']
+    output:
+        patterns['reports']['cluster']
+    conda:
+        'config/pacbio_tools.yaml'
+    resources:
+        mem_gb = 1,
+        time = 1,
+    shell: """
+        python $CONDA_PREFIX/bin/isoseq3_make_cluster_report.py {input.polished} && \
+        mv cluster_report.csv {output[0]}
+    """
+
+rule gunzip_fastq:
+    input:
+        patterns['polish']['hq_fastq']
+    output:
+        temp(patterns['gunzip']['hq_fastq'])
+    group:
+        'collapse'
+    shell:
+        "gunzip -c {input[0]} > {output[0]}"
+
+
+rule collapse_isoforms:
+    input:
+        hq_fastq = patterns['gunzip']['hq_fastq'],
+        bam = patterns['gmap_align']['bam']
+    output:
+        flatten(patterns['collapse_isoforms'])
+    params:
+        prefix = '{output_dir}/{sample}/{sample}'
+    conda:
+        'config/pacbio_tools.yaml'
+    group:
+        'collapse'
+    resources:
+        mem_gb = 1,
+        time = 1,
+    shell: """
+        tmp=`mktemp --suffix=.sam` && \
+        samtools view -h -F 4 {input.bam} > $tmp && \
+        python $CONDA_PREFIX/bin/collapse_isoforms_by_sam.py \
+            --input {input.hq_fastq} \
+            --fq \
+            -s $tmp \
+            --dun-merge-5-shorter -o {params.prefix} && \
+        rm $tmp
+    """
 
 
 """Real world example of these steps
