@@ -106,3 +106,9 @@ venv.bak/
 # Data Folders
 output
 data
+
+# Snakemake
+*.snakemake
+
+# Pycharm
+.idea
