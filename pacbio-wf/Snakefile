@@ -54,8 +54,8 @@ rule bax2bam:
     conda:
         'config/pacbio_tools.yaml'
     resources:
-        mem_gb = 4,
-        time = 4,
+        mem_gb = lambda wildcards, attempt: attempt * 4,
+        time_hr = lambda wildcards, attempt: attempt * 4
     shell:
         "bax2bam {input.movies} -o {params.prefix} 2>&1 > {log}"
 
@@ -74,8 +74,8 @@ rule ccs:
         'config/pacbio_tools.yaml'
     threads: 28
     resources:
-        mem_gb = 12,
-        time = 4,
+        mem_gb = lambda wildcards, attempt: attempt * 12,
+        time_hr = lambda wildcards, attempt: attempt * 4
     shell:
         """
         ccs \
@@ -101,8 +101,8 @@ rule lima:
     conda:
         'config/pacbio_tools.yaml'
     resources:
-        mem_gb = 2,
-        time = 4,
+        mem_gb = lambda wildcards, attempt: attempt * 2,
+        time_hr = lambda wildcards, attempt: attempt * 4
     shell:
         "lima {input.bam} {input.bc} {params.prefix} --isoseq"
 
@@ -122,9 +122,11 @@ rule isoseq3_merge:
         patterns['merge']['xml']
     conda:
         'config/pacbio_tools.yaml'
+    group:
+        'merge'
     resources:
-        mem_gb = 2,
-        time = 4,
+        mem_gb = lambda wildcards, attempt: attempt * 2,
+        time_hr = lambda wildcards, attempt: attempt * 4
     shell:
         "dataset create --type TranscriptSet {output[0]} {input}"
 
@@ -139,9 +141,11 @@ rule isoseq3_refine:
         bam=patterns['refine']['bam']
     conda:
         'config/pacbio_tools.yaml'
+    group:
+        'merge'
     resources:
-        mem_gb = 2,
-        time = 4,
+        mem_gb = lambda wildcards, attempt: attempt * 2,
+        time_hr = lambda wildcards, attempt: attempt * 4
     shell:
         "isoseq3 refine {input.xml} {input.bc} {params.bam} --require-polya"
 
@@ -157,8 +161,8 @@ rule isoseq3_cluster:
         'config/pacbio_tools.yaml'
     threads: 32
     resources:
-        mem_gb = 24,
-        time = 4,
+        mem_gb = lambda wildcards, attempt: attempt * 24,
+        time_hr = lambda wildcards, attempt: attempt * 4
     shell:
         "isoseq3 cluster {input[0]} {params.bam} -j {threads}"
 
@@ -178,9 +182,11 @@ rule merge_subreads:
         patterns['merge_subreads']['xml']
     conda:
         'config/pacbio_tools.yaml'
+    group:
+        'polish'
     resources:
-        mem_gb = 2,
-        time = 4,
+        mem_gb = lambda wildcards, attempt: attempt * 2,
+        time_hr = lambda wildcards, attempt: attempt * 4
     shell:
         "dataset create --type SubreadSet {output[0]} {input}"
 
@@ -195,10 +201,12 @@ rule isoseq3_polish:
         bam = patterns['polish']['bam']
     conda:
         'config/pacbio_tools.yaml'
+    group:
+        'polish'
     threads: 32
     resources:
-        mem_gb = 12,
-        time = 4,
+        mem_gb = lambda wildcards, attempt: attempt * 12,
+        time_hr = lambda wildcards, attempt: attempt * 4
     shell:
         "isoseq3 polish {input.unpolished} {input.subreads} {params.bam} -j {threads}"
 
@@ -213,8 +221,8 @@ rule gmap_build:
     conda:
         'config/pacbio_tools.yaml'
     resources:
-        mem_gb = 8,
-        time = 4,
+        mem_gb = lambda wildcards, attempt: attempt * 8,
+        time_hr = lambda wildcards, attempt: attempt * 4
     shell:
         "gmap_build -D {wildcards.output_dir}/references -d dm6 {input[0]}"
 
@@ -226,6 +234,9 @@ rule gunzip_fasta:
         temp(patterns['gunzip']['hq_fasta'])
     group:
         'align'
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 1,
+        time_hr = lambda wildcards, attempt: attempt * 1
     shell:
         "gunzip -c {input[0]} > {output[0]}"
 
@@ -245,12 +256,12 @@ rule gmap_align:
         patterns['gmap_align']['sam'] + '.log'
     conda:
         'config/pacbio_tools.yaml'
-    threads: 32
     group:
         'align'
+    threads: 32
     resources:
-        mem_gb = 12,
-        time = 4,
+        mem_gb = lambda wildcards, attempt: attempt * 12,
+        time_hr = lambda wildcards, attempt: attempt * 4
     shell: """
         gmap \
             -D {wildcards.output_dir}/references \
@@ -283,8 +294,10 @@ rule merge_lima:
     output:
         patterns['merge_lima']['clips']
     resources:
-        mem_gb = 1,
-        time = 1,
+        mem_gb = lambda wildcards, attempt: attempt * 1,
+        time_hr = lambda wildcards, attempt: attempt * 1
+    group:
+        'report'
     shell:
         "cat {input} > {output[0]}"
 
@@ -298,9 +311,11 @@ rule classify_report:
         patterns['reports']['classify']
     conda:
         'config/pacbio_tools.yaml'
+    group:
+        'report'
     resources:
-        mem_gb = 1,
-        time = 1,
+        mem_gb = lambda wildcards, attempt: attempt * 1,
+        time_hr = lambda wildcards, attempt: attempt * 1
     shell: """
         python $CONDA_PREFIX/bin/isoseq3_make_classify_report.py {input.clips} {input.bc} --flnc_bam {input.flnc} && \
         mv classify_report.csv {output[0]}
@@ -314,9 +329,11 @@ rule cluster_report:
         patterns['reports']['cluster']
     conda:
         'config/pacbio_tools.yaml'
+    group:
+        'report'
     resources:
-        mem_gb = 1,
-        time = 1,
+        mem_gb = lambda wildcards, attempt: attempt * 1,
+        time_hr = lambda wildcards, attempt: attempt * 1
     shell: """
         python $CONDA_PREFIX/bin/isoseq3_make_cluster_report.py {input.polished} && \
         mv cluster_report.csv {output[0]}
@@ -329,6 +346,9 @@ rule gunzip_fastq:
         temp(patterns['gunzip']['hq_fastq'])
     group:
         'collapse'
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 1,
+        time_hr = lambda wildcards, attempt: attempt * 1
     shell:
         "gunzip -c {input[0]} > {output[0]}"
 
@@ -346,8 +366,8 @@ rule collapse_isoforms:
     group:
         'collapse'
     resources:
-        mem_gb = 1,
-        time = 1,
+        mem_gb = lambda wildcards, attempt: attempt * 1,
+        time_hr = lambda wildcards, attempt: attempt * 1
     shell: """
         tmp=`mktemp --suffix=.sam` && \
         samtools view -h -F 4 {input.bam} > $tmp && \
