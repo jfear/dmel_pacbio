@@ -24,15 +24,6 @@ localrules: all, cluster_report, classify_report
 
 rule all:
     input:
-        flatten(targets['bax2bam']),
-        flatten(targets['ccs']),
-        flatten(targets['lima']),
-        flatten(targets['merge']),
-        flatten(targets['refine']),
-        flatten(targets['cluster']),
-        flatten(targets['merge_subreads']),
-        flatten(targets['polish']),
-        flatten(targets['gmap_align']),
         flatten(targets['reports']),
         flatten(targets['collapse_isoforms']),
 
@@ -122,8 +113,6 @@ rule isoseq3_merge:
         patterns['merge']['xml']
     conda:
         'config/pacbio_tools.yaml'
-    group:
-        'merge'
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 2,
         time_hr = lambda wildcards, attempt: attempt * 4
@@ -141,8 +130,6 @@ rule isoseq3_refine:
         bam=patterns['refine']['bam']
     conda:
         'config/pacbio_tools.yaml'
-    group:
-        'merge'
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 2,
         time_hr = lambda wildcards, attempt: attempt * 4
@@ -182,8 +169,6 @@ rule merge_subreads:
         patterns['merge_subreads']['xml']
     conda:
         'config/pacbio_tools.yaml'
-    group:
-        'polish'
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 2,
         time_hr = lambda wildcards, attempt: attempt * 4
@@ -201,8 +186,6 @@ rule isoseq3_polish:
         bam = patterns['polish']['bam']
     conda:
         'config/pacbio_tools.yaml'
-    group:
-        'polish'
     threads: 32
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 12,
@@ -232,8 +215,6 @@ rule gunzip_fasta:
         patterns['polish']['hq_fasta']
     output:
         temp(patterns['gunzip']['hq_fasta'])
-    group:
-        'align'
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 1,
         time_hr = lambda wildcards, attempt: attempt * 1
@@ -256,8 +237,6 @@ rule gmap_align:
         patterns['gmap_align']['sam'] + '.log'
     conda:
         'config/pacbio_tools.yaml'
-    group:
-        'align'
     threads: 32
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 12,
@@ -296,8 +275,6 @@ rule merge_lima:
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 1,
         time_hr = lambda wildcards, attempt: attempt * 1
-    group:
-        'report'
     shell:
         "cat {input} > {output[0]}"
 
@@ -311,8 +288,6 @@ rule classify_report:
         patterns['reports']['classify']
     conda:
         'config/pacbio_tools.yaml'
-    group:
-        'report'
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 1,
         time_hr = lambda wildcards, attempt: attempt * 1
@@ -329,8 +304,6 @@ rule cluster_report:
         patterns['reports']['cluster']
     conda:
         'config/pacbio_tools.yaml'
-    group:
-        'report'
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 1,
         time_hr = lambda wildcards, attempt: attempt * 1
@@ -344,8 +317,6 @@ rule gunzip_fastq:
         patterns['polish']['hq_fastq']
     output:
         temp(patterns['gunzip']['hq_fastq'])
-    group:
-        'collapse'
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 1,
         time_hr = lambda wildcards, attempt: attempt * 1
@@ -363,8 +334,6 @@ rule collapse_isoforms:
         prefix = '{output_dir}/{sample}/{sample}'
     conda:
         'config/pacbio_tools.yaml'
-    group:
-        'collapse'
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 1,
         time_hr = lambda wildcards, attempt: attempt * 1

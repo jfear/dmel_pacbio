@@ -12,4 +12,5 @@ if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
     time snakemake \
     --profile ../config/slurm \
     --jobname "s.{rulename}.{jobid}.sh" \
+    --cluster-config config/clusterconfig.yaml \
     ) > "Snakefile.log" 2>&1
