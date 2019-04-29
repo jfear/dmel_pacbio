@@ -1,3 +1,6 @@
 [submodule "lcdb-wf"]
 	path = lcdb-wf
 	url = https://github.com/lcdb/lcdb-wf.git
+[submodule "sqanti"]
+	path = sqanti
+	url = git@github.com:jfear/sqanti.git
