@@ -72,3 +72,11 @@ collapse_isoforms:
   fq: '{output_dir}/{sample}/{sample}.collapsed.rep.fq'
   txt: '{output_dir}/{sample}/{sample}.collapsed.group.txt'
   ignored: '{output_dir}/{sample}/{sample}.ignored_ids.txt'
+
+sqanti:
+  pdf: '{output_dir}/{sample}/sqanti/{sample}.collapsed_report.pdf'
+  classifications: '{output_dir}/{sample}/sqanti/{sample}.collapsed_classification.txt'
+  faa: '{output_dir}/{sample}/sqanti/{sample}.collapsed_corrected.faa'
+  fasta: '{output_dir}/{sample}/sqanti/{sample}.collapsed_corrected.fasta'
+  gtf: '{output_dir}/{sample}/sqanti/{sample}.collapsed_corrected.gtf'
+  junctions: '{output_dir}/{sample}/sqanti/{sample}.collapsed_junctions.txt'

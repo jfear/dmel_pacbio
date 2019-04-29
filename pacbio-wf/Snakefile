@@ -26,6 +26,7 @@ rule all:
     input:
         flatten(targets['reports']),
         flatten(targets['collapse_isoforms']),
+        flatten(targets['sqanti'])
 
 
 def _bax2bam(wildcards):
@@ -348,6 +349,31 @@ rule collapse_isoforms:
         rm $tmp
     """
 
+
+rule sqanti_ref:
+    input: config['gtf']
+    output: '{output_dir}/dmel_exons_only.gtf'
+    shell: 'grep "exon" {input[0]} > {output[0]}'
+
+
+rule sqanti:
+    input:
+        isoforms = patterns['collapse_isoforms']['gff'],
+        annotation = rules.sqanti_ref.output[0],
+        genome = config['fasta']
+    output: flatten(patterns['sqanti'])
+    conda: '../sqanti/conda_environment.yaml'
+    resources:
+             mem_gb = lambda wildcards, attempt: attempt * 1,
+             time_hr = lambda wildcards, attempt: attempt * 1
+    shell: """
+        ../sqanti/sqanti_qc.py \
+        --gtf \
+        -d $(dirname {output[0]}) \
+        {input.isoforms} \
+        {input.annotation} \
+        {input.genome} 
+    """
 
 """Real world example of these steps
 $ wget https://downloads.pacbcloud.com/public/dataset/RC0_1cell_2017/m54086_170204_081430.subreads.bam
